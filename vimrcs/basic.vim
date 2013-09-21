@@ -162,13 +162,13 @@ set ffs=unix,dos,mac
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" => Files, backups and undo
+" =>  diff
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" Turn backup off, since most stuff is in SVN, git etc. anyway...
-set nobackup
-set nowb
-set noswapfile
-
+" don't show white space differences
+if &diff
+    " diff mode
+    set diffopt+=iwhite
+endif
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Text, tab and indent related
