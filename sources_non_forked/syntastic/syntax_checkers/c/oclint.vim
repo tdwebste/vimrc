@@ -25,20 +25,22 @@ if !exists('g:syntastic_oclint_config_file')
     let g:syntastic_oclint_config_file = '.syntastic_oclint_config'
 endif
 
+if !exists('g:syntastic_c_oclint_sort')
+    let g:syntastic_c_oclint_sort = 1
+endif
+
 let s:save_cpo = &cpo
 set cpo&vim
 
 function! SyntaxCheckers_c_oclint_GetLocList() dict
     let makeprg = self.makeprgBuild({
-        \ 'post_args_before': '-- -c ' . syntastic#c#ReadConfig(g:syntastic_oclint_config_file) })
+        \ 'post_args': '-- -c ' . syntastic#c#ReadConfig(g:syntastic_oclint_config_file) })
 
     let errorformat =
-        \ '%E%f:%l:%c: %m P1 ,' .
-        \ '%E%f:%l:%c: %m P2 ,' .
-        \ '%W%f:%l:%c: %m P3 ,' .
         \ '%E%f:%l:%c: fatal error: %m,' .
         \ '%E%f:%l:%c: error: %m,' .
         \ '%W%f:%l:%c: warning: %m,' .
+        \ '%E%f:%l:%c: %m,' .
         \ '%-G%.%#'
 
     let loclist = SyntasticMake({
@@ -48,7 +50,14 @@ function! SyntaxCheckers_c_oclint_GetLocList() dict
         \ 'postprocess': ['compressWhitespace'],
         \ 'returns': [0, 3, 5] })
 
-    call self.setWantSort(1)
+    for e in loclist
+        if e['text'] =~# '\v P3( |$)'
+            let e['type'] = 'W'
+        endif
+
+        let e['text'] = substitute(e['text'], '\m\C P[1-3]$', '', '')
+        let e['text'] = substitute(e['text'], '\m\C P[1-3] ', ': ', '')
+    endfor
 
     return loclist
 endfunction

@@ -5,10 +5,11 @@ let g:loaded_syntastic_registry = 1
 
 " Initialisation {{{1
 
-let s:defaultCheckers = {
+let s:_DEFAULT_CHECKERS = {
         \ 'actionscript':['mxmlc'],
         \ 'ada':         ['gcc'],
         \ 'applescript': ['osacompile'],
+        \ 'arduino':     ['avrgcc'],
         \ 'asciidoc':    ['asciidoc'],
         \ 'asm':         ['gcc'],
         \ 'bro':         ['bro'],
@@ -29,7 +30,7 @@ let s:defaultCheckers = {
         \ 'dart':        ['dartanalyzer'],
         \ 'docbk':       ['xmllint'],
         \ 'dustjs':      ['swiffer'],
-        \ 'elixir':      ['elixir'],
+        \ 'elixir':      [],
         \ 'erlang':      ['escript'],
         \ 'eruby':       ['ruby'],
         \ 'fortran':     ['gfortran'],
@@ -50,6 +51,7 @@ let s:defaultCheckers = {
         \ 'lisp':        ['clisp'],
         \ 'llvm':        ['llvm'],
         \ 'lua':         ['luac'],
+        \ 'markdown':    ['mdl'],
         \ 'matlab':      ['mlint'],
         \ 'nasm':        ['nasm'],
         \ 'nroff':       ['mandoc'],
@@ -64,6 +66,7 @@ let s:defaultCheckers = {
         \ 'python':      ['python', 'flake8', 'pylint'],
         \ 'r':           [],
         \ 'racket':      ['racket'],
+        \ 'rnc':         ['rnv'],
         \ 'rst':         ['rst2pseudoxml'],
         \ 'ruby':        ['mri'],
         \ 'sass':        ['sass'],
@@ -71,10 +74,11 @@ let s:defaultCheckers = {
         \ 'scss':        ['sass', 'scss_lint'],
         \ 'sh':          ['sh', 'shellcheck'],
         \ 'slim':        ['slimrb'],
+        \ 'spec':        ['rpmlint'],
         \ 'tcl':         ['nagelfar'],
         \ 'tex':         ['lacheck', 'chktex'],
         \ 'texinfo':     ['makeinfo'],
-        \ 'text':        ['atdtool'],
+        \ 'text':        [],
         \ 'twig':        ['twiglint'],
         \ 'typescript':  ['tsc'],
         \ 'vala':        ['valac'],
@@ -90,14 +94,19 @@ let s:defaultCheckers = {
         \ 'zpt':         ['zptlint'],
         \ 'zsh':         ['zsh', 'shellcheck']
     \ }
-lockvar! s:defaultCheckers
+lockvar! s:_DEFAULT_CHECKERS
 
-let s:defaultFiletypeMap = {
+let s:_DEFAULT_FILETYPE_MAP = {
         \ 'gentoo-metadata': 'xml',
+        \ 'groff': 'nroff',
         \ 'lhaskell': 'haskell',
-        \ 'litcoffee': 'coffee'
+        \ 'litcoffee': 'coffee',
+        \ 'mail': 'text',
+        \ 'mkd': 'markdown',
+        \ 'sgml': 'docbk',
+        \ 'sgmllnx': 'docbk',
     \ }
-lockvar! s:defaultFiletypeMap
+lockvar! s:_DEFAULT_FILETYPE_MAP
 
 let g:SyntasticRegistry = {}
 
@@ -129,7 +138,7 @@ endfunction " }}}2
 " not checked for availability (that is, the corresponding IsAvailable() are
 " not run).
 function! g:SyntasticRegistry.getCheckers(ftalias, hints_list) " {{{2
-    let ft = s:normaliseFiletype(a:ftalias)
+    let ft = s:_normaliseFiletype(a:ftalias)
     call self._loadCheckersFor(ft)
 
     let checkers_map = self._checkerMap[ft]
@@ -143,7 +152,7 @@ function! g:SyntasticRegistry.getCheckers(ftalias, hints_list) " {{{2
         \ !empty(a:hints_list) ? syntastic#util#unique(a:hints_list) :
         \ exists('b:syntastic_checkers') ? b:syntastic_checkers :
         \ exists('g:syntastic_' . ft . '_checkers') ? g:syntastic_{ft}_checkers :
-        \ get(s:defaultCheckers, ft, 0)
+        \ get(s:_DEFAULT_CHECKERS, ft, 0)
 
     return type(names) == type([]) ?
         \ self._filterCheckersByName(checkers_map, names) : [checkers_map[keys(checkers_map)[0]]]
@@ -156,9 +165,9 @@ function! g:SyntasticRegistry.getCheckersAvailable(ftalias, hints_list) " {{{2
 endfunction " }}}2
 
 function! g:SyntasticRegistry.getKnownFiletypes() " {{{2
-    let types = keys(s:defaultCheckers)
+    let types = keys(s:_DEFAULT_CHECKERS)
 
-    call extend(types, keys(s:defaultFiletypeMap))
+    call extend(types, keys(s:_DEFAULT_FILETYPE_MAP))
 
     if exists('g:syntastic_filetype_map')
         call extend(types, keys(g:syntastic_filetype_map))
@@ -172,16 +181,13 @@ function! g:SyntasticRegistry.getKnownFiletypes() " {{{2
 endfunction " }}}2
 
 function! g:SyntasticRegistry.getNamesOfAvailableCheckers(ftalias) " {{{2
-    let ft = s:normaliseFiletype(a:ftalias)
+    let ft = s:_normaliseFiletype(a:ftalias)
     call self._loadCheckersFor(ft)
     return keys(filter( copy(self._checkerMap[ft]), 'v:val.isAvailable()' ))
 endfunction " }}}2
 
 function! g:SyntasticRegistry.echoInfoFor(ftalias_list) " {{{2
-    echomsg "Syntastic version: " . g:syntastic_version
-    echomsg "Info for filetype: " . join(a:ftalias_list, '.')
-
-    let ft_list = syntastic#util#unique(map( copy(a:ftalias_list), 's:normaliseFiletype(v:val)' ))
+    let ft_list = syntastic#util#unique(map( copy(a:ftalias_list), 's:_normaliseFiletype(v:val)' ))
     if len(ft_list) != 1
         let available = []
         let active = []
@@ -196,8 +202,15 @@ function! g:SyntasticRegistry.echoInfoFor(ftalias_list) " {{{2
         let active = map(self.getCheckersAvailable(ft, []), 'v:val.getName()')
     endif
 
-    echomsg "Available checker(s): " . join(sort(available))
-    echomsg "Currently enabled checker(s): " . join(active)
+    let cnt = len(available)
+    let plural = cnt != 1 ? 's' : ''
+    let cklist = cnt ? join(sort(available)) : '-'
+    echomsg 'Available checker' . plural . ': ' . cklist
+
+    let cnt = len(active)
+    let plural = cnt != 1 ? 's' : ''
+    let cklist = cnt ? join(active) : '-'
+    echomsg 'Currently enabled checker' . plural . ': ' . cklist
 endfunction " }}}2
 
 " }}}1
@@ -248,8 +261,8 @@ endfunction " }}}2
 
 "resolve filetype aliases, and replace - with _ otherwise we cant name
 "syntax checker functions legally for filetypes like "gentoo-metadata"
-function! s:normaliseFiletype(ftalias) " {{{2
-    let ft = get(s:defaultFiletypeMap, a:ftalias, a:ftalias)
+function! s:_normaliseFiletype(ftalias) " {{{2
+    let ft = get(s:_DEFAULT_FILETYPE_MAP, a:ftalias, a:ftalias)
     let ft = get(g:syntastic_filetype_map, ft, ft)
     let ft = substitute(ft, '\m-', '_', 'g')
     return ft
