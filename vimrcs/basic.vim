@@ -40,6 +40,8 @@ filetype indent on
 " Set to auto read when a file is changed from the outside
 " bad idea, good to know when things change, because might not like them
 " set autoread
+set autoread
+au FocusGained,BufEnter * checktime
 
 " With a map leader it's possible to do extra key combinations
 " like <leader>w saves the current file
@@ -139,7 +141,7 @@ syntax enable
 " catch
 " endtry
 
-" set background=dark
+"set background=dark
 
 " Set extra options when running in GUI mode
 if has("gui_running")
