@@ -30,8 +30,8 @@ endif
 " set guioptions-=L
 
 " Colorscheme
-set background=dark
-colorscheme peaksea
+" set background=light
+"colorscheme peaksea
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
