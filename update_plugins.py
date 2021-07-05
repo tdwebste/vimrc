@@ -1,4 +1,17 @@
 try:
+    import git
+except:
+    try:
+        from pip import main as pipmain
+    except ImportError:
+        from pip._internal import main as pipmain
+    pipmain(['install', 'gitpython'])
+    try:
+        import git
+    except ImportError:
+        git = None
+
+try:
     import concurrent.futures as futures
 except ImportError:
     try:
@@ -10,8 +23,7 @@ import zipfile
 import shutil
 import tempfile
 import requests
-
-from os import path
+import os
 
 # --- Globals ----------------------------------------------
 PLUGINS = """
@@ -60,13 +72,21 @@ vim-python-pep8-indent https://github.com/Vimjas/vim-python-pep8-indent
 mru.vim https://github.com/vim-scripts/mru.vim
 """.strip()
 
+REPO_PLUGINS = """
+tagbar https://github.com/preservim/tagbar
+vim-polyglot https://github.com/sheerun/vim-polyglot
+YouCompleteMe https://github.com/ycm-core/YouCompleteMe
+""".strip()
+
 GITHUB_ZIP = "%s/archive/master.zip"
 
-SOURCE_DIR = path.join(path.dirname(__file__), "sources_non_forked")
+ROOT_DIR = os.getcwd()
+SOURCE_DIR = os.path.join(os.path.dirname(__file__), "sources_non_forked")
+REPO_PLUGINS_DIR = os.path.join(os.path.dirname(__file__), "my_plugins")
 
 
 def download_extract_replace(plugin_name, zip_path, temp_dir, source_dir):
-    temp_zip_path = path.join(temp_dir, plugin_name)
+    temp_zip_path = os.path.join(temp_dir, plugin_name)
 
     # Download and extract file in temp dir
     req = requests.get(zip_path)
@@ -75,12 +95,12 @@ def download_extract_replace(plugin_name, zip_path, temp_dir, source_dir):
     zip_f = zipfile.ZipFile(temp_zip_path)
     zip_f.extractall(temp_dir)
 
-    plugin_temp_path = path.join(
-        temp_dir, path.join(temp_dir, "%s-master" % plugin_name)
+    plugin_temp_path = os.path.join(
+        temp_dir, os.path.join(temp_dir, "%s-master" % plugin_name)
     )
 
     # Remove the current plugin and replace it with the extracted
-    plugin_dest_path = path.join(source_dir, plugin_name)
+    plugin_dest_path = os.path.join(source_dir, plugin_name)
 
     try:
         shutil.rmtree(plugin_dest_path)
@@ -90,12 +110,36 @@ def download_extract_replace(plugin_name, zip_path, temp_dir, source_dir):
     shutil.move(plugin_temp_path, plugin_dest_path)
     print("Updated {0}".format(plugin_name))
 
+def git_clone_repo(repo_name, repo_remote, source_dir):
+    repo_path = f'{source_dir}/{repo_name}'
+    #print(repo_path, repo_remote)
+    if not os.getcwd() == source_dir:
+        os.chdir(source_dir)
+
+    if os.path.isdir(repo_name):
+        print(f'git pull {repo_name}', flush = True)
+        repo = git.Repo(repo_name)
+        repo.git.pull(recursive = True)
+    else:
+        print(f'git clone {repo_remote, repo_name}', flush = True)
+        try:
+            repo = git.Repo.clone_from(repo_remote, repo_name, recursive = True)
+        except Exception as e:
+            print(f'\n')
+            print(e.args)
+    print("git Updated {0}".format(repo_name))
+
 
 def update(plugin):
     name, github_url = plugin.split(" ")
     zip_path = GITHUB_ZIP % github_url
-    download_extract_replace(name, zip_path, temp_directory, SOURCE_DIR)
+    source_dir = f'{ROOT_DIR}/{SOURCE_DIR}'
+    download_extract_replace(name, zip_path, temp_directory, source_dir)
 
+def git_update(plugin):
+    name, github_url = plugin.split(" ")
+    source_dir = f'{ROOT_DIR}/{REPO_PLUGINS_DIR}'
+    git_clone_repo(name, github_url, source_dir)
 
 if __name__ == "__main__":
     temp_directory = tempfile.mkdtemp()
@@ -103,8 +147,13 @@ if __name__ == "__main__":
     try:
         if futures:
             with futures.ThreadPoolExecutor(16) as executor:
-                executor.map(update, PLUGINS.splitlines())
+                zip_result = executor.map(update, PLUGINS.splitlines())
+                if git:
+                    git_result = executor.map(git_update, REPO_PLUGINS.splitlines())
+
         else:
             [update(x) for x in PLUGINS.splitlines()]
+            if git:
+                [git_update(x) for x in REPO_PLUGINS.splitlines()]
     finally:
         shutil.rmtree(temp_directory)
