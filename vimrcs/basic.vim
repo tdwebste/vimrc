@@ -131,6 +131,10 @@ nmap <leader>w :w!<cr>
 " (useful for handling the permission-denied error)
 command! W execute 'w !sudo tee % > /dev/null' <bar> edit!
 
+" path
+let &path .= system("git rev-parse --show-toplevel | tr -d '\\n'") . "/**" . ",./**"
+set tags+=tags;./tags;system("git rev-parse --show-toplevel | tr -d '\\n' ")/tags
+" let g:vim_tags_auto_generate = 1
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => VIM user interface
