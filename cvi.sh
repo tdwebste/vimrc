@@ -8,8 +8,8 @@
 #####
 #find . -regex ".*\.\(c\|h\|hpp\|cc\|cpp\)" -print
 #####
-if [ $# -ne 1 ]; then
-        echo "Usage: "$(basename $0)" . | sys"
+if [ $# -lt 1 ]; then
+        echo "Usage: "$(basename $0)" . | sys <anychar_refresh_tags>"
         exit 1
 fi
 
@@ -30,16 +30,29 @@ scanlocalPath=(
 #---------------------------------------------------------------------------------#
 tmpDir=~/.vim/tmp
 [ -d "${tmpDir}" ] || mkdir -p ${tmpDir}
-#randomNum=`head -50 /dev/urandom | md5sum | awk '{print $1}'`
 tmpFile="${tmpDir}/ctags${RANDOM}"
+
+git_root=$(git rev-parse --show-toplevel)
+if [ $? -ne 0 ]; then
+        git_root='.'
+fi
 tagName="tags"
+tagFile="${git_root}/${tagName}"
+if [ $# -gt 1 ]; then
+        rm -f "${tagFile}"
+fi
 
 > ${tmpFile}
 if [ "$1" = "." ]; then
-        find . -type f \
+        cmd="find "${git_root}" -type f \
         -a \( -name "*.h" -o -name "*.hpp" -o -name "*.cpp" -o -name "*.c" \
-        -o -name "*.cc" -o -name "*.java" -o -name "*.pc" \) > $tmpFile
-        putDir=.
+        -o -name "*.cc" -o -name "*.java" -o -name "*.pc" \)"
+        if [ -f "${tagFile}" ]; then
+                cmd="${cmd} -newer ${tagFile}"
+        fi
+        echo "$cmd"
+        eval "$cmd" > $tmpFile
+        putDir="${git_root}"
 elif [ "$1" = "sys" ]; then
         # get file list to be operating
         for dir in ${scanincludePath[*]}; do
@@ -60,16 +73,17 @@ elif [ "$1" = "sys" ]; then
 fi
 
 cd ${putDir}
-rm -f cscope.* ${tagName}
+#rm -f cscope.* ${tagFile}
 ctags -I "__THROW __nonnull __attribute_pure__ __attribute__ G_GNUC_PRINTF+" \
---file-scope=yes --c++-kinds=+px --c-kinds=+px --fields=+iaS -Ra --extra=+fq \
---langmap=c:.c.h.pc.ec --languages=c,c++ --links=yes -f ${tagName} -L $tmpFile
+--append --file-scope=yes --c++-kinds=+px --c-kinds=+px --fields=+iaS -Ra --extra=+fq \
+--langmap=c:.c.h.pc.ec --languages=c,c++ --links=yes -f ${tagFile} -L $tmpFile
 
 #-k means kernel mode: don't parse /usr/include
 #-q: large project use this
 #cscope -Rqkb -i $tmpFile
-ctags -L $tmpFile
-cscope -Rb -i $tmpFile
+if [ -s "${tmpFile}" ]; then
+        cscope -Rb -i $tmpFile
+fi
 
 
 #-------cleanup--------------------
