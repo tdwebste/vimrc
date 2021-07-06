@@ -25,9 +25,10 @@ import tempfile
 import requests
 import os
 
+# I add brackets after which does not work with auto pairs.
+# auto-pairs https://github.com/jiangmiao/auto-pairs
 # --- Globals ----------------------------------------------
 PLUGINS = """
-auto-pairs https://github.com/jiangmiao/auto-pairs
 ale https://github.com/w0rp/ale
 vim-yankstack https://github.com/maxbrunsfeld/vim-yankstack
 ack.vim https://github.com/mileszs/ack.vim
