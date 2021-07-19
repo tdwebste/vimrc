@@ -112,7 +112,7 @@ set expandtab
 set smarttab
 " Indentation settings for using hard tabs for indent. Display tabs as
 " four characters wide.
-"set tabstop=4
+set tabstop=4
 "
 set ai "Auto indent
 set si "Smart indent
