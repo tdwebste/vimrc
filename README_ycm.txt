@@ -5,3 +5,5 @@ section 4.
 
 tag method
 run cvi.sh in git repo top directory
+
+:YcmRestartServer
